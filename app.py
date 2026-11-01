@@ -1,34 +1,10 @@
-import os
-import streamlit as st
-import base64
-from openai import OpenAI
-import openai
-#from PIL import Image
-import tensorflow as tf
-from PIL import Image, ImageOps
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 
-Expert=" "
-profile_imgenh=" "
-    
-def encode_image_to_base64(image_path):
-    try:
-        with open(image_path, "rb") as image_file:
-            encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
-            return encoded_image
-    except FileNotFoundError:
-        return "Error: La imagen no se encontró en la ruta especificada."
-
-
-# Streamlit
-st.set_page_config(page_title='¿Adivinas qué dibujé?', page_icon='🎲')
+st.set_page_config(page_title='Tablero para dibujo', page_icon='🎨')
 
 # ------------------------------------------------------------------
-# TEMA "¿ADIVINAS QUÉ DIBUJÉ?" (solo estilos CSS; la lógica y los inputs no cambian)
+# TEMA "TABLERO DE DIBUJO" (solo estilos CSS; la lógica y los inputs no cambian)
 # ------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -160,23 +136,16 @@ section[data-testid="stSidebar"] h3{ font-size:1.1rem !important; }
 """, unsafe_allow_html=True)
 
 st.markdown("""
-<span class="juego-tag">🎲 Juego de dibujo con IA</span>
-<div class="juego-title">¿Adivinas qué <span>dibujé</span>?</div>
-<div class="juego-sub">Dibuja lo que quieras y reta a la inteligencia artificial: ¿será capaz de descubrir qué es?</div>
+<span class="juego-tag">🎨 Tablero de dibujo</span>
+<div class="juego-title">Tablero para <span>dibujo</span></div>
+<div class="juego-sub">Dibuja lo que quieras y personaliza el tablero desde la barra lateral: tamaño, herramienta, grosor y colores.</div>
 <div class="juego-pasos">
-  <div class="juego-paso"><b>1</b>Dibuja algo en el tablero</div>
-  <div class="juego-paso"><b>2</b>Pulsa «¡Adivina!»</div>
-  <div class="juego-paso"><b>3</b>¿Acertó la IA?</div>
+  <div class="juego-paso"><b>1</b>Elige tu herramienta</div>
+  <div class="juego-paso"><b>2</b>Ajusta colores y tamaño</div>
+  <div class="juego-paso"><b>3</b>¡Dibuja!</div>
 </div>
 """, unsafe_allow_html=True)
-with st.sidebar:
-    st.subheader("🎲 Cómo se juega")
-    st.subheader("Dibuja algo en el tablero y la IA intentará adivinar qué es. ¡Pon a prueba sus ojos!")
-st.subheader("✏️ Tu turno: dibuja algo")
 
-# Add canvas component
-#bg_image = st.sidebar.file_uploader("Cargar Imagen:", type=["png", "jpg"])
-# Specify canvas parameters in application
 with st.sidebar:
     st.subheader("🎨 Tu tablero")
 
@@ -200,99 +169,14 @@ with st.sidebar:
     # Background color
     bg_color = st.color_picker("Color de fondo", "#000000")
 
-
 # Create a canvas component with dynamic key
 canvas_result = st_canvas(
-    fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
+    fill_color="rgba(255, 165, 0, 0.3)",
     stroke_width=stroke_width,
     stroke_color=stroke_color,
     background_color=bg_color,
     height=canvas_height,
     width=canvas_width,
-    #background_image= None #Image.open(bg_image) if bg_image else None,
     drawing_mode=drawing_mode,
     key=f"canvas_{canvas_width}_{canvas_height}",  # Dynamic key based on dimensions
 )
-
-ke = st.text_input('🔑 Ingresa tu clave de OpenAI')
-#os.environ['OPENAI_API_KEY'] = st.secrets['OPENAI_API_KEY']
-os.environ['OPENAI_API_KEY'] = ke
-
-
-# Retrieve the OpenAI API Key from secrets
-api_key = os.environ['OPENAI_API_KEY']
-
-# Initialize the OpenAI client with the API key
-client = OpenAI(api_key=api_key)
-
-analyze_button = st.button("🎲 ¡Adivina!", type="secondary")
-
-# Check if an image has been uploaded, if the API key is available, and if the button has been pressed
-if canvas_result.image_data is not None and api_key and analyze_button:
-
-    with st.spinner("🤔 La IA está pensando qué dibujaste..."):
-        # Encode the image
-        input_numpy_array = np.array(canvas_result.image_data)
-        input_image = Image.fromarray(input_numpy_array.astype('uint8'),'RGBA')
-        input_image.save('img.png')
-        
-      # Codificar la imagen en base64
- 
-        base64_image = encode_image_to_base64("img.png")
-            
-        prompt_text = (f"Describe the image in spanish")
-    
-      # Create the payload for the completion request
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt_text},
-                    {
-                        "type": "image_url",
-                        "image_url":f"data:image/png;base64,{base64_image}",
-                    },
-                ],
-            }
-        ]
-    
-        # Make the request to the OpenAI API
-        try:
-            full_response = ""
-            message_placeholder = st.empty()
-            response = openai.chat.completions.create(
-              model= "gpt-4o-mini",  #o1-preview ,gpt-4o-mini
-              messages=[
-                {
-                   "role": "user",
-                   "content": [
-                     {"type": "text", "text": prompt_text},
-                     {
-                       "type": "image_url",
-                       "image_url": {
-                         "url": f"data:image/png;base64,{base64_image}",
-                       },
-                     },
-                   ],
-                  }
-                ],
-              max_tokens=500,
-              )
-            #response.choices[0].message.content
-            if response.choices[0].message.content is not None:
-                    full_response += response.choices[0].message.content
-                    message_placeholder.markdown(full_response + "▌")
-            # Final update to placeholder after the stream ends
-            message_placeholder.markdown(full_response)
-            if Expert== profile_imgenh:
-               st.session_state.mi_respuesta= response.choices[0].message.content #full_response 
-    
-            # Display the response in the app
-            #st.write(response.choices[0])
-        except Exception as e:
-            st.error(f"Ups, la IA no pudo adivinar esta vez: {e}")
-else:
-    # Warnings for user action required
-
-    if not api_key:
-        st.warning("🔑 Ingresa tu clave de OpenAI para empezar a jugar.")
